@@ -1,0 +1,43 @@
+DROP procedure if exists 
+SP_INSERTAR_PRODUCTO ;
+DELIMITER //
+CREATE  PROCEDURE  BD_factsv2.Exa2 (
+    in p_idfactura int,
+    in p_idproducto int,
+    in p_cantidad int
+ )
+BEGIN 
+    declare  h_idfactura int; 
+    declare  h_idproducto int; 
+    declare  h_cantidad int;
+    declare  h_saldounidades int;
+    declare  h_precioVenta int;
+    declare  h_impuestosobreventa int;
+    
+    set h_idfactura        = p_idfactura;
+    set h_idproducto    = p_idproducto; 
+    set h_cantidad        = p_cantidad;
+    select saldounidades into h_saldounidades from tbl_productos where idProducto=h_idproducto;
+    select precioVenta into h_precioVenta from tbl_productos where idProducto=h_idproducto;
+    set h_impuestosobreventa = h_precioVenta*0.15;
+    
+    if saldounidades>=h_cantidad then
+    #Insertar un nuevo producto en la tabla y determinar saldo de unidades de el producto es mayor o igual A). 
+        insert into tbl_productos_facturados
+            (idProducto,idFactura,cantidad,impuestosobreventa,precioVenta)
+        values 
+            (h_idproducto,h_idfactura,h_cantidad,h_impuestosobreventa,h_precioVenta);
+            
+    #Luego de realizar la inserción, debe actualizar el campo de saldo B). 
+        update tbl_productos set saldounidades=saldounidades-h_cantidad where idProducto=idProducto;
+    
+    #Actualizar los campos de la factura con idfactura con los nuevos valores generados con la adición del producto  C).
+        update tbl_facturas set 
+            cantidadProductos = cantidadProductos+h_cantidad,
+            subTotalPagar = subTotalPagar+h_precioVenta,
+            totalISV = totalISV + h_impuestosobreventa,
+            totalpagar = totalISV+subTotalPagar
+        where idFactura=v_idfactura;
+    end if;
+    commit;
+ END;
